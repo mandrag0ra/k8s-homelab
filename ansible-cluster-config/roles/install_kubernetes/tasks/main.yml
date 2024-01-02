@@ -1,0 +1,149 @@
+---
+
+# Disable swap
+- name: Remove swapfile from /etc/fstab
+  ansible.posix.mount:
+    name: "{{ item }}"
+    fstype: swap
+    state: absent
+  loop:
+    - swap
+    - none
+
+# kubelet fails even if ansible_swaptotal_mb = 0
+- name: Check swap
+  ansible.builtin.command: /sbin/swapon -s
+  register: swapon
+  changed_when: false
+
+- name: Disable swap
+  ansible.builtin.command: /sbin/swapoff -a
+  when:
+    - swapon.stdout
+  ignore_errors: "{{ ansible_check_mode }}"  # noqa ignore-errors
+  changed_when: false
+
+
+# Add kernel modules
+- name: Load br_netfilter kernel module
+  community.general.modprobe:
+    name: br_netfilter
+    state: present
+
+- name: Add br_netfilter into /etc/modules-load.d/containerd.conf
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/containerd.conf
+    content: |-
+      ### This file is managed by Ansible
+      br_netfilter
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Enable net.ipv4.ip_forward in sysctl
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: 1
+    sysctl_file: "/etc/sysctl.d/99-kubernetes.conf"
+    state: present
+    reload: true
+
+- name: Set bridge-nf-call-{arptables,iptables} to 1
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    state: present
+    value: 1
+    sysctl_file: "/etc/sysctl.d/99-kubernetes.conf"
+    reload: true
+  with_items:
+    - net.bridge.bridge-nf-call-arptables
+    - net.bridge.bridge-nf-call-ip6tables
+    - net.bridge.bridge-nf-call-iptables
+
+
+# Install CRI
+- name: Install APT Transport HTTPS and GPG
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - apt-transport-https
+    - gpg
+
+- name: Add Docker apt-key
+  ansible.builtin.apt_key:
+    url: https://download.docker.com/linux/debian/gpg
+    state: present
+
+- name: Add Docker's APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+    filename: "docker-{{ ansible_distribution_release }}.list"
+
+- name: Install Containerd
+  ansible.builtin.apt:
+    name: containerd.io
+    state: present
+    update_cache: true
+
+# Install, configure and start containerd
+- name: Create Containerd directory
+  ansible.builtin.file:
+    path: /etc/containerd
+    state: directory
+    mode: '0755'
+
+- name: Add Containerd configuration
+  ansible.builtin.shell: /usr/bin/containerd config default > /etc/containerd/config.toml
+  changed_when: false
+
+- name: Enable SystemdCgroup in containerd
+  ansible.builtin.replace:
+    path: /etc/containerd/config.toml
+    regexp: 'SystemdCgroup = false'
+    replace: 'SystemdCgroup = true'
+
+- name: Enable the Containerd service and start it
+  ansible.builtin.systemd:
+    name: containerd
+    state: restarted
+    enabled: true
+    daemon-reload: true
+
+# Install kubernets
+- name: Create /etc/apt/keyrings (if it does not exist On Deiban 12)
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Add Kubernetes apt-key
+  ansible.builtin.apt_key:
+    url: "https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/Release.key"
+    state: present
+    keyring: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+- name: Add Kubernetes' APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/ /"
+    state: present
+    filename: 'kubernetes.list'
+
+- name: Install kubelet
+  ansible.builtin.apt:
+    state: present
+    update_cache: true
+    name:
+      - kubelet
+      - kubeadm
+
+# apt hold version
+- name: Hold kubelet packet
+  ansible.builtin.dpkg_selections:
+    selection: hold
+    name: kubelet
+
+- name: Hold kubeadm packet
+  ansible.builtin.dpkg_selections:
+    selection: hold
+    name: kubeadm

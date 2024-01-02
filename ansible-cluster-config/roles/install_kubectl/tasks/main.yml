@@ -1,0 +1,25 @@
+# Install kubectl
+- name: Create /etc/apt/keyrings (if it does not exist On Deiban 12)
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Add Kubernetes apt-key
+  ansible.builtin.apt_key:
+    url: "https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/Release.key"
+    state: present
+    keyring: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+- name: Add Kubernetes' APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/ /"
+    state: present
+    filename: 'kubernetes.list'
+
+- name: Install kubectl
+  ansible.builtin.apt:
+    state: present
+    update_cache: true
+    name:
+      - kubectl

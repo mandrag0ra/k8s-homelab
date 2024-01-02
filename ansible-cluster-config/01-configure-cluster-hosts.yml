@@ -1,0 +1,14 @@
+---
+
+- name: Configure and install kubernetes cluster
+  hosts: 'all'
+  roles:
+    - hosts_config
+    - install_kubernetes
+  become: true
+
+- name: Install kubectl on masters
+  hosts: 'masters'
+  roles:
+    - install_kubectl
+  become: true

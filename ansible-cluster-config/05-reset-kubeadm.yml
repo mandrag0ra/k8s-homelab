@@ -1,0 +1,48 @@
+---
+
+- name: Reset kubernetes host configuration
+  hosts: all
+  become: true
+  tasks:
+    - name: Kubeadm reset
+      ansible.builtin.command: kubeadm reset --force
+      changed_when: false
+
+    - name: Delete join cluster file
+      ansible.builtin.file:
+        path: "/home/{{ node_user }}/node_joined.log"
+        state: absent
+    
+    - name: Iptables flush filter
+      ansible.builtin.iptables:
+        chain: "{{ item }}"
+        flush: yes
+      with_items:  [ 'INPUT', 'FORWARD', 'OUTPUT' ]
+
+    - name: Find a better way to delete link (cni0)
+      ansible.builtin.command: ip link delete cni0
+      changed_when: false
+
+    - name: Find a better way to delete link (flannel)
+      ansible.builtin.command: ip link delete flannel.1
+      changed_when: false
+
+
+- name: Reset masters
+  hosts: masters
+  become: true
+  tasks:
+    - name: Delete cluster init file
+      ansible.builtin.file:
+        path: "/home/{{ node_user }}/cluster_initialized.txt"
+        state: absent
+
+    - name: Delete pod network file
+      ansible.builtin.file:
+        path: "/home/{{ node_user }}/pod_network_setup.txt"
+        state: absent
+
+    - name: Delete .kube directory
+      ansible.builtin.file:
+        path: "/home/{{ node_user }}/.kube"
+        state: absent

@@ -1,0 +1,26 @@
+---
+
+masters:
+  hosts:
+    k8s-m1:
+      ansible_host: 10.0.0.10
+
+workers:
+  hosts:
+    k8s-w1:
+      ansible_host: 10.0.0.11
+    k8s-w2:
+      ansible_host: 10.0.0.12
+    k8s-w3:
+      ansible_host: 10.0.0.13
+
+loadbalancer:
+  hosts:
+    k8s-m1:
+      ansible_host: 10.0.0.10
+
+## If you use a bastion
+all:
+  hosts:
+  vars:
+    ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ProxyCommand="ssh -W %h:%p -q k8s-m1.arcanes.re"'
