@@ -1,0 +1,76 @@
+---
+# Configure cluster
+- name: Configure and install kubernetes cluster
+  hosts: 'all'
+  roles:
+    - hosts_config
+    - install_kubernetes
+  become: true
+
+- name: Install kubectl on masters
+  hosts: 'masters'
+  roles:
+    - install_kubectl
+  become: true
+
+---
+
+# Run only once from a master node (init kubernetes master)
+- name: Init kubernetes masters
+  hosts: masters
+  become: true
+  tasks:
+    - name: Initialize the cluster
+      ansible.builtin.shell: kubeadm init --pod-network-cidr=10.244.0.0/16 >> cluster_initialized.txt
+      args:
+        chdir: "/home/{{ node_user }}"
+        creates: cluster_initialized.txt
+
+    - name: Create .kube directory
+      become: true
+      become_user: "{{ node_user }}"
+      ansible.builtin.file:
+        path: "/home/{{ node_user }}/.kube"
+        state: directory
+        mode: "0755"
+
+    - name: Copy admin.conf to user's kube config
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "/home/{{ node_user }}/.kube/config"
+        remote_src: true
+        owner: "{{ node_user }}"
+        mode: "0644"
+
+    - name: Install Pod network (flannel)
+      become_user: "{{ node_user }}"
+      ansible.builtin.shell: kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml >> pod_network_setup.txt
+      args:
+        chdir: "/home/{{ node_user }}"
+        creates: pod_network_setup.txt
+
+---
+# Init kubernetes workers
+- name: Get masters join token
+  hosts: masters
+  become: true
+  tasks:
+    - name: Get join command
+      ansible.builtin.command: kubeadm token create --print-join-command
+      register: join_command_raw
+      changed_when: false
+
+    - name: Set join command
+      ansible.builtin.set_fact:
+        join_command: "{{ join_command_raw.stdout_lines[0] }}"
+
+- name: Join workers
+  hosts: workers
+  become: true
+  tasks:
+    - name: Join cluster
+      ansible.builtin.shell: "{{ hostvars['k8s-m1'].join_command }} >> node_joined.log"
+      args:
+        chdir: "/home/{{ node_user }}"
+        creates: node_joined.log
+

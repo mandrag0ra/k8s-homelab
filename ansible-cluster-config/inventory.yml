@@ -20,7 +20,7 @@ loadbalancer:
       ansible_host: 10.0.0.10
 
 ## If you use a bastion
-all:
-  hosts:
-  vars:
-    ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ProxyCommand="ssh -W %h:%p -q k8s-m1.arcanes.re"'
+# all:
+#   hosts:
+#   vars:
+#     ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ProxyCommand="ssh -W %h:%p -q my-proxy-server.com"'
