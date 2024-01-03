@@ -15,3 +15,10 @@ This can be changed in `group_vars/all.yml`.
 ## Haproxy
 Install haproxy to facilitate redirection of traffic to the K8s cluster.
 In this example, it will send all requests to the Kubernetes Traefik Ingress Controller.
+
+## Run
+Simply run :
+```
+ansible-playbook -i inventory.yml 01-install-and-configure-k8s-cluster.yml
+```
+
