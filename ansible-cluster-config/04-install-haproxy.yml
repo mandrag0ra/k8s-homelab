@@ -1,8 +1,0 @@
----
-
-# Install Haproxy
-- name: Install Haproxy
-  hosts: loadbalancer
-  roles:
-    - install_haproxy
-  become: true
