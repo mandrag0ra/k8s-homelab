@@ -13,7 +13,6 @@
     - install_kubectl
   become: true
 
-
 # Run only once from a master node (init kubernetes master)
 - name: Init kubernetes masters
   hosts: masters
@@ -48,7 +47,6 @@
         chdir: "/home/{{ node_user }}"
         creates: pod_network_setup.txt
 
-
 # Init kubernetes workers
 - name: Get masters join token
   hosts: masters
@@ -72,4 +70,3 @@
       args:
         chdir: "/home/{{ node_user }}"
         creates: node_joined.log
-
