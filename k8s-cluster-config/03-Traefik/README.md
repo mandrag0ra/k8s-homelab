@@ -18,7 +18,7 @@ kubectl apply -f deploy/crd-rbac.yml
 ```
 
 ## Volumes
-### Create Persistent Volume
+### If you want to create Persistent Volume
 ```
 kubectl apply -f deploy/persistent-volume-claim.yml
 ```
