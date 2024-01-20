@@ -47,11 +47,3 @@ spec:
               containerPort: 4443
             - name: admin
               containerPort: 8080
-      # If you want to use persistent volume
-      #     volumeMounts:
-      #       - name: certificates
-      #         mountPath: /etc/traefik/certs
-      # volumes:
-      #   - name: certificates
-      #     persistentVolumeClaim:
-      #       claimName: traefik-claim
